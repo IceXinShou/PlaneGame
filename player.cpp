@@ -297,17 +297,17 @@ namespace XsSetting {
 
         // change laser
         while (*status == 1) {
-
             ++y;
             // erase old paint
             paintsQueue.push(new Paint{x, (unsigned short) (y - 1), BLANK});
 
             // if hit the border
-            if ((*height - 2) == y)
+            if ((*height - 1) == y)
                 break;
 
             paintsQueue.push(new Paint{x, (unsigned short) (y), LASER});
             this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+
         }
     }
 
@@ -337,7 +337,25 @@ namespace XsSetting {
                 thread(summonLaser, &data->gameSizeWidth, &data->gameSizeHeight, &game_status).detach();
             }
 
-            // print lasers
+            // print
+            int size = paintsQueue.size();
+            for (int i = 0; i < size; i++) {
+                auto *p = paintsQueue.front();
+
+                gotoXY(p->x, p->y);
+
+                switch (p->type) {
+                    case BLANK:
+                        printf(" ");
+                        break;
+
+                    case LASER:
+                        print("|", GREEN);
+                        break;
+                }
+                paintsQueue.pop();
+            }
+            /*
             while (!paintsQueue.empty()) {
                 Paint *p = paintsQueue.front();
                 paintsQueue.pop();
@@ -354,7 +372,7 @@ namespace XsSetting {
                         break;
                 }
             }
-
+*/
             // print plane
             data->drawPlane(data->coordinate_x, data->coordinate_y);
             if (!((0x8000 & GetAsyncKeyState(VK_LEFT)) && (0x8000 & GetAsyncKeyState(VK_RIGHT)))) {
