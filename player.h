@@ -5,12 +5,11 @@
 #include <conio.h>
 #include <windows.h>
 
-
 #define CENTER 0
 #define CENTER_LEFT 1
-
 #define ESC "\x1B"
-
+#define SHOOTED 1
+#define AMMO_STOP -1
 
 using namespace std;
 
@@ -35,14 +34,17 @@ enum Color : int {
 static void errorPrint(int errorCode); // game crash or report
 static void printRepeat(const char &c, int count); // repeat print out char
 static void printRepeat(const string &c, int count); // repeat print out string
-void print(std::string msg, Color background, Color font);;
-void print(std::string msg, Color font);;
+void print(const std::string& msg, Color background, Color font);;
+void print(const std::string& msg, Color font);;
 void gotoXY(short x, short y);
 
 struct Lazer {
-    unsigned short x;
-    unsigned short y;
-    unsigned short stop;
+    bool changed = false;
+    unsigned short x{};
+    short last_x{};
+    unsigned short y{};
+    short last_y{};
+    unsigned short status{};
 };
 
 void summonLazer(unsigned short *player_x, unsigned short *weigh, unsigned short *height, short *stop);
@@ -108,8 +110,9 @@ namespace XsSetting {
 
     public:
         explicit Setting(Plane *data) { this->data = data; };
-        static void *keyEvent(void *wch); 
-        void start(); // no exit
+        static void *keyEvent(void *wch);
+
+        [[noreturn]] void start(); // no exit
         void changeGameSize(); // ! check whether string length suitable for new size
         void changeHeart(); 
         void changeSpeed(); 

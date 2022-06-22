@@ -1,5 +1,6 @@
 #include "player.h"
 
+
 extern HANDLE console; // batch setting handler
 namespace XsUtil {
 
@@ -20,7 +21,6 @@ namespace XsUtil {
         switch (position) {
             case CENTER: {
                 clearScreenWithoutBorder(data->gameSizeWidth, data->gameSizeHeight);
-//                printDefaultBorder(data->gameSizeWidth, data->gameSizeHeight);
 
                 SetConsoleCursorPosition(console, {0, 1});
 
@@ -122,26 +122,13 @@ void errorPrint(int errorCode) {
 }
 
 
-void print(std::string msg, Color background, Color font) {
+void print(const std::string &msg, Color background, Color font) {
     SetConsoleTextAttribute(console, background * 16 + font);
     printf("%s", msg.c_str());
     SetConsoleTextAttribute(console, LIGHTGRAY);
 }
-/*
-void summonLazer(unsigned short *player_x, unsigned short *weigh, unsigned short *height, short *stop) {
-    Lazer lazer{(unsigned short) (rand() % 65 + 2), 3, 1};
-    lazers.push_back(lazer);
-    while (*height - 4 >= ++lazer.y && *stop != 0) {
-        if (*stop == 1) {
-            if (lazer.y == *height - 5 && lazer.x == *player_x)
-                *stop = 0; // game over
-            *stop = 2;
-        }
-    }
-    lazers.erase(lazers.cbegin());
-}
-*/
-void print(std::string msg, Color font) {
+
+void print(const std::string &msg, Color font) {
     SetConsoleTextAttribute(console, font);
     printf("%s", msg.c_str());
     SetConsoleTextAttribute(console, LIGHTGRAY);
@@ -295,7 +282,36 @@ namespace XsSetting {
         }
     }
 
-    void Setting::start() {
+    vector<Lazer *> lasers;
+
+
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> rand(0, 32767); // distribution in range [1, 6]
+
+    void summonLszer(const unsigned short *width, const unsigned short *height, short *status) {
+        // generate a random razer
+        int randNum = rand(rng);
+
+        auto *laser = new Lazer{false, (unsigned short) ((randNum % (*width - 6)) + 3), -1, 1, -1, 1};
+        lasers.push_back(laser);
+        int waitTime = (randNum % 50) + 30; // ms
+        // change laser
+        while (*status == 1 && laser->status == 1) {
+            if ((*height - 2) <= laser->y){
+                laser->changed = false;
+                laser->status = AMMO_STOP;
+                break;
+            }
+            ++laser->y;
+            laser->changed = false;
+            this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+        }
+    }
+
+
+    [[noreturn]] void Setting::start() {
+        SetConsoleCursorInfo(console, new CONSOLE_CURSOR_INFO{1, false});
         XsUtil::GUI::clearScreenWithoutBorder(data->gameSizeWidth, data->gameSizeHeight);
         data->init();
 
@@ -307,29 +323,38 @@ namespace XsSetting {
         long delayTime = 0;
         mingw_gettimeofday(&now, nullptr);
 
-        //short game_status = 1;
-        //int counter = 0;
+        short game_status = 1;
+        int counter = 0;
 
-        //vector<thread> lazerThread;
+        vector<thread> laserThread;
         while (true) {
-/*
-            if (++counter >= 60) {
+
+            if (++counter >= 70) {
                 counter = 0;
-                lazerThread.push_back(
-                        thread(summonLazer, &data->coordinate_x, &data->gameSizeWidth, &data->gameSizeHeight,
-                               &game_status));
-                lazerThread.back().detach();
+                laserThread.emplace_back(summonLszer, &data->gameSizeWidth, &data->gameSizeHeight, &game_status);
+                laserThread.back().detach();
             }
 
-            cout << lazers.size();
-            for (int i = lazers.size() - 1; i >= 0; --i) {
-                gotoXY(lazers.at(i).x, lazers.at(i).y - 1);
-                printf(" ");
-                gotoXY(lazers.at(i).x, lazers.at(i).y);
+            for (Lazer *i: lasers) { // print lasers
+                if (i->changed) continue;
+                if (i->status == AMMO_STOP) {
+                    gotoXY(i->x, i->y-2);
+                    printf(" ");
+                    i->changed = true;
+                    std::remove(lasers.begin(), lasers.end(), i);
+                    continue;
+                }
+                if (i->last_x != -1) {
+                    gotoXY(i->last_x, i->last_y);
+                    printf(" ");
+                }
+                gotoXY(i->x, i->y);
                 print("|", GREEN);
-                lazers.at(i).stop = 2;
+                i->last_x = i->x;
+                i->last_y = i->y;
+                i->changed = true;
             }
-*/
+
             data->drawPlane(data->coordinate_x, data->coordinate_y);
             if (!((0x8000 & GetAsyncKeyState(VK_LEFT)) && (0x8000 & GetAsyncKeyState(VK_RIGHT)))) {
                 if (0x8000 & GetAsyncKeyState(VK_LEFT)) {
