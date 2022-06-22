@@ -1,5 +1,6 @@
 #include "player.h"
 
+using namespace XsUtil;
 
 extern HANDLE console; // batch setting handler
 namespace XsUtil {
@@ -85,84 +86,65 @@ namespace XsUtil {
             printf(ESC"[%dX", width - 2);
         }
     }
-}
 
-
-void printRepeat(const string &c, int count) {
-    if (count < 0) errorPrint(-1);
-    while (count--)
-        cout << c;
-}
-
-void printRepeat(const char &c, int count) {
-    if (count < 0) errorPrint(-1);
-    while (count--)
-        printf("%c", c);
-}
-
-void errorPrint(int errorCode) {
-    printf("\n\n-\n");
-    if (errorCode < 0) {
-        printf("Game had crash and shutdown by error: ");
-        switch (errorCode) {
-            case -1:
-                printf("Repeat number could not be negative!");
-                break;
-        }
-    } else {
-        printf("Game met an error: ");
-        switch (errorCode) {
-            case 1:
-                printf("Something here!");
-                break;
-        }
+    void print(const std::string &msg, Color background, Color font) {
+        SetConsoleTextAttribute(console, background * 16 + font);
+        printf("%s", msg.c_str());
+        SetConsoleTextAttribute(console, LIGHTGRAY);
     }
-    printf("\n-\n\n");
-    if (errorCode < 0) exit(0);
-}
+
+    void print(const std::string &msg, Color font) {
+        SetConsoleTextAttribute(console, font);
+        printf("%s", msg.c_str());
+        SetConsoleTextAttribute(console, LIGHTGRAY);
+    }
+
+    void gotoXY(short x, short y) {
+        SetConsoleCursorPosition(console, {x, y});
+    }
+
+    void printRepeat(const string &c, int count) {
+        if (count < 0) errorPrint(-1);
+        while (count--)
+            cout << c;
+    }
+
+    void printRepeat(const char &c, int count) {
+        if (count < 0) errorPrint(-1);
+        while (count--)
+            printf("%c", c);
+    }
+
+    void errorPrint(int errorCode) {
+        printf("\n\n-\n");
+        if (errorCode < 0) {
+            printf("Game had crash and shutdown by error: ");
+            switch (errorCode) {
+                case -1:
+                    printf("Repeat number could not be negative!");
+                    break;
+            }
+        } else {
+            printf("Game met an error: ");
+            switch (errorCode) {
+                case 1:
+                    printf("Something here!");
+                    break;
+            }
+        }
+        printf("\n-\n\n");
+        if (errorCode < 0) exit(0);
+    }
+
+    bool arrayBoolCheck(const bool *arr, int count) {
+        for (int i = 0; i < count; ++i) {
+            if (*(arr + count))
+                return true;
+        }
+        return false;
+    }
 
 
-void print(const std::string &msg, Color background, Color font) {
-    SetConsoleTextAttribute(console, background * 16 + font);
-    printf("%s", msg.c_str());
-    SetConsoleTextAttribute(console, LIGHTGRAY);
-}
-
-void print(const std::string &msg, Color font) {
-    SetConsoleTextAttribute(console, font);
-    printf("%s", msg.c_str());
-    SetConsoleTextAttribute(console, LIGHTGRAY);
-}
-
-void gotoXY(short x, short y) {
-    SetConsoleCursorPosition(console, {x, y});
-}
-
-void Plane::init() {
-    length = 3;
-    lengthNow = 0;
-    offset = 0;
-    coordinate_x = gameSizeWidth / 2.0 - 5.5;
-    coordinate_y = gameSizeHeight / 2.0 + 4.5;
-    leftBarrier = false;
-    rightBarrier = false;
-}
-
-void Plane::drawPlane(short x, short y) const {
-    gotoXY(x, y);
-    print("            ", color);
-    gotoXY(x, y + 1);
-    print("    __|__    ", color);
-    gotoXY(x, y + 2);
-    print(" ----(_)---- ", color);
-    gotoXY(x, y + 3);
-    print("  O 0   O O  ", color);
-    gotoXY(x, y + 4);
-    print("            ", color);
-}
-
-
-namespace XsSetting {
     void Setting::changeGameSize() {
         while (true) {
             XsUtil::GUI::printDefaultBorder(data->gameSizeWidth, data->gameSizeHeight);
@@ -282,42 +264,61 @@ namespace XsSetting {
         }
     }
 
-    queue<Paint *> paintsQueue;
+
+    mutex m;
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_int_distribution<std::mt19937::result_type> rand(0, 32767); // distribution in range [0, 32767]
-
-    void summonLaser(const unsigned short *width, const unsigned short *height, const short *status) {
+    queue<Paint *> paintsQueue;
+    uniform_int_distribution<mt19937::result_type> rand(1, 1000); // distribution in range [1, 1000]
+    void Setting::summonLaser(const unsigned short *width, const unsigned short *height, const short *status) {
 
         // generate a random laser
         int randNum = rand(rng);
-        int waitTime = (randNum % 50) + 30; // ms
-        unsigned short x = (randNum % (*width - 6)) + 3;
+        int waitTime = (randNum % 35) + 20; // ms
+        unsigned short x = (randNum * randNum % (*width - 6)) + 3;
         unsigned short y = 1;
 
         // change laser
         while (*status == 1) {
             ++y;
+
+            m.lock();
+
             // erase old paint
             paintsQueue.push(new Paint{x, (unsigned short) (y - 1), BLANK});
 
             // if hit the border
-            if ((*height - 1) == y)
+            if ((*height - 1) == y) {
+                m.unlock();
                 break;
+            }
+            if (waitTime <= 20)
+                paintsQueue.push(new Paint{x, (unsigned short) (y), FAST_STONE});
+            else if (waitTime >= 40)
+                paintsQueue.push(new Paint{x, (unsigned short) (y), SLOW_STONE});
+            else
+                paintsQueue.push(new Paint{x, (unsigned short) (y), STONE});
 
-            paintsQueue.push(new Paint{x, (unsigned short) (y), LASER});
-            this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+            m.unlock();
 
+            this_thread::sleep_for(chrono::milliseconds(waitTime));
         }
     }
 
-
-    [[noreturn]] void Setting::start() {
+    void Setting::start() {
         SetConsoleCursorInfo(console, new CONSOLE_CURSOR_INFO{1, false});
         XsUtil::GUI::clearScreenWithoutBorder(data->gameSizeWidth, data->gameSizeHeight);
         data->init();
 
         // render setting
+        bool gameMap[data->gameSizeHeight][data->gameSizeWidth]; // rock
+
+        for (int i = 0; i < data->gameSizeHeight; ++i) {
+            for (int j = 0; j < data->gameSizeWidth; ++j) {
+                gameMap[i][j] = false;
+            }
+        }
+
         float fps = data->fps;
         struct timeval last{}, now = {0, 0}, secTimer = {0, 0};
         long renderTime = 0;
@@ -327,75 +328,109 @@ namespace XsSetting {
 
         short game_status = 1;
         int counter = 0;
+        float difficult = (data->gameSizeWidth / 2.0 - data->gameSizeWidth / 10.0);
+        difficult -= int(difficult) % 30;
+        float timer = 40 - difficult;
 
         vector<thread> laserThread;
         while (true) {
 
             // timer to generate laser
-            if (++counter >= 70) {
+            if (++counter >= timer) {
                 counter = 0;
+                if (timer > 30)
+                    timer -= 0.03 * (30 - difficult);
+                else if (timer > 20)
+                    timer -= 0.03 * (10 - int(difficult) % 10);
+                else if (timer > 10)
+                    timer -= 0.03;
+                else if (difficult >= 25)
+                    timer -= 0.02;
                 thread(summonLaser, &data->gameSizeWidth, &data->gameSizeHeight, &game_status).detach();
             }
-
             // print
-            int size = paintsQueue.size();
-            for (int i = 0; i < size; i++) {
-                auto *p = paintsQueue.front();
 
-                gotoXY(p->x, p->y);
-
-                switch (p->type) {
-                    case BLANK:
-                        printf(" ");
-                        break;
-
-                    case LASER:
-                        print("|", GREEN);
-                        break;
-                }
-                paintsQueue.pop();
-            }
-            /*
+            m.lock();
             while (!paintsQueue.empty()) {
                 Paint *p = paintsQueue.front();
                 paintsQueue.pop();
 
-                gotoXY(p->x, p->y);
+                if (p->type == BLANK)
+                    gameMap[p->y][p->x] = false;
+                else
+                    gameMap[p->y][p->x] = true;
 
+                gotoXY(p->x, p->y);
                 switch (p->type) {
                     case BLANK:
-                        printf(" ");
+                        printf("  ");
                         break;
 
-                    case LASER:
-                        print("|", GREEN);
+                    case SLOW_STONE:
+                        print("▆▆", GREEN);
+                        break;
+
+                    case STONE:
+                        print("▆▆", YELLOW);
+                        break;
+
+                    case FAST_STONE:
+                        print("▆▆", RED);
                         break;
                 }
             }
-*/
+            m.unlock();
+
+            // check plane alive
+            /*
+            bool *l1 = gameMap[data->x + 2] + data->y;
+            bool *l2 = gameMap[data->x] + data->y + 1;
+            bool *l3 = gameMap[data->x] + data->y + 2;
+            if (arrayBoolCheck(l1, 5) || arrayBoolCheck(l2, 9) || arrayBoolCheck(l3, 9)) {
+                XsUtil::GUI::createMessage(gameOverWord, CENTER, data);
+                return;
+            }
+            */
+
+
             // print plane
-            data->drawPlane(data->coordinate_x, data->coordinate_y);
+            data->drawPlane();
+            data->last_x = data->x;
+            data->last_y = data->y;
+
+            // move plane
             if (!((0x8000 & GetAsyncKeyState(VK_LEFT)) && (0x8000 & GetAsyncKeyState(VK_RIGHT)))) {
+
+                // left press
                 if (0x8000 & GetAsyncKeyState(VK_LEFT)) {
-                    if (data->coordinate_x > 2.5)
-                        data->coordinate_x--;
+                    if (data->x > 1)
+                        data->x--;
+
                 } else if (0x8000 & GetAsyncKeyState(VK_RIGHT)) {
-                    if (data->coordinate_x < data->gameSizeWidth - data->planeWeigh - 3.5)
-                        data->coordinate_x++;
+                    // right press
+                    if (data->x < data->gameSizeWidth - data->planeWeigh - 1)
+                        data->x++;
                 }
             }
             if (!((0x8000 & GetAsyncKeyState(VK_UP)) && (0x8000 & GetAsyncKeyState(VK_DOWN)))) {
+
+                // up press
                 if (0x8000 & GetAsyncKeyState(VK_UP)) {
-                    if (data->coordinate_y > 2.5)
-                        data->coordinate_y--;
+                    if (data->y > 2.5)
+                        data->y--;
                 } else if (0x8000 & GetAsyncKeyState(VK_DOWN)) {
-                    if (data->coordinate_y < data->gameSizeHeight - data->planeHeigh - 3.5)
-                        data->coordinate_y++;
+                    // down press
+                    if (data->y < data->gameSizeHeight - data->planeHeigh - 1.5)
+                        data->y++;
                 }
             }
-            gotoXY(1, 1);
 
-            printf(ESC"[0m" ESC"[%dX FPS: %.2f\tRender Used: %.2fms / Max: %.2fms ",
+            // print info data
+            gotoXY(1, 1);
+            printf(ESC
+                   "[0m"
+                   ESC
+                   "[%dX FPS: %.2f\tRender Used: %.2fms / Max: %.2fms ",
                    data->gameSizeWidth - 2,
                    (renderTime + delayTime) == 0 ? 1000000 : 1000000.f / (renderTime + delayTime),
                    (float) renderTime / 1000.f,
@@ -425,5 +460,32 @@ namespace XsSetting {
             mingw_gettimeofday(&now, nullptr);
 
         }
+    }
+
+
+    void Plane::init() {
+        x = gameSizeWidth / 2.0 - 5.5;
+        y = gameSizeHeight / 2.0 + 4.5;
+    }
+
+    void Plane::drawPlane()  {
+
+        // erase old
+        if (last_x != -1 || last_y != -1) {
+            XsUtil::gotoXY(last_x + 2, last_y);
+            print("     ", color);
+            gotoXY(last_x, last_y + 1);
+            print("         ", color);
+            gotoXY(last_x, last_y + 2);
+            print("         ", color);
+        }
+
+        // print new
+        gotoXY(x + 2, y);
+        print("__|__", color);
+        gotoXY(x, y + 1);
+        print("---(_)---", color);
+        gotoXY(x, y + 2);
+        print("O 0   O O", color);
     }
 }

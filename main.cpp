@@ -5,7 +5,6 @@
 
 using namespace std;
 using namespace XsUtil;
-using namespace XsSetting;
 
 // Class init
 
