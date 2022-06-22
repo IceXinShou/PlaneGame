@@ -282,29 +282,31 @@ namespace XsSetting {
         }
     }
 
-    vector<Lazer *> lasers;
-
-
+    queue<Paint *> paintsQueue;
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_int_distribution<std::mt19937::result_type> rand(0, 32767); // distribution in range [1, 6]
+    std::uniform_int_distribution<std::mt19937::result_type> rand(0, 32767); // distribution in range [0, 32767]
 
-    void summonLszer(const unsigned short *width, const unsigned short *height, short *status) {
-        // generate a random razer
+    void summonLaser(const unsigned short *width, const unsigned short *height, const short *status) {
+
+        // generate a random laser
         int randNum = rand(rng);
-
-        auto *laser = new Lazer{false, (unsigned short) ((randNum % (*width - 6)) + 3), -1, 1, -1, 1};
-        lasers.push_back(laser);
         int waitTime = (randNum % 50) + 30; // ms
+        unsigned short x = (randNum % (*width - 6)) + 3;
+        unsigned short y = 1;
+
         // change laser
-        while (*status == 1 && laser->status == 1) {
-            if ((*height - 2) <= laser->y){
-                laser->changed = false;
-                laser->status = AMMO_STOP;
+        while (*status == 1) {
+
+            ++y;
+            // erase old paint
+            paintsQueue.push(new Paint{x, (unsigned short) (y - 1), BLANK});
+
+            // if hit the border
+            if ((*height - 2) == y)
                 break;
-            }
-            ++laser->y;
-            laser->changed = false;
+
+            paintsQueue.push(new Paint{x, (unsigned short) (y), LASER});
             this_thread::sleep_for(std::chrono::milliseconds(waitTime));
         }
     }
@@ -329,32 +331,31 @@ namespace XsSetting {
         vector<thread> laserThread;
         while (true) {
 
+            // timer to generate laser
             if (++counter >= 70) {
                 counter = 0;
-                laserThread.emplace_back(summonLszer, &data->gameSizeWidth, &data->gameSizeHeight, &game_status);
-                laserThread.back().detach();
+                thread(summonLaser, &data->gameSizeWidth, &data->gameSizeHeight, &game_status).detach();
             }
 
-            for (Lazer *i: lasers) { // print lasers
-                if (i->changed) continue;
-                if (i->status == AMMO_STOP) {
-                    gotoXY(i->x, i->y-2);
-                    printf(" ");
-                    i->changed = true;
-                    std::remove(lasers.begin(), lasers.end(), i);
-                    continue;
+            // print lasers
+            while (!paintsQueue.empty()) {
+                Paint *p = paintsQueue.front();
+                paintsQueue.pop();
+
+                gotoXY(p->x, p->y);
+
+                switch (p->type) {
+                    case BLANK:
+                        printf(" ");
+                        break;
+
+                    case LASER:
+                        print("|", GREEN);
+                        break;
                 }
-                if (i->last_x != -1) {
-                    gotoXY(i->last_x, i->last_y);
-                    printf(" ");
-                }
-                gotoXY(i->x, i->y);
-                print("|", GREEN);
-                i->last_x = i->x;
-                i->last_y = i->y;
-                i->changed = true;
             }
 
+            // print plane
             data->drawPlane(data->coordinate_x, data->coordinate_y);
             if (!((0x8000 & GetAsyncKeyState(VK_LEFT)) && (0x8000 & GetAsyncKeyState(VK_RIGHT)))) {
                 if (0x8000 & GetAsyncKeyState(VK_LEFT)) {

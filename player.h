@@ -31,14 +31,29 @@ enum Color : int {
     YELLOW = 14,
     WHITE = 15
 };
+
 static void errorPrint(int errorCode); // game crash or report
 static void printRepeat(const char &c, int count); // repeat print out char
 static void printRepeat(const string &c, int count); // repeat print out string
-void print(const std::string& msg, Color background, Color font);;
-void print(const std::string& msg, Color font);;
+void print(const std::string &msg, Color background, Color font);;
+
+void print(const std::string &msg, Color font);;
+
 void gotoXY(short x, short y);
 
-struct Lazer {
+
+enum Type {
+    BLANK,
+    LASER,
+};
+
+struct Paint {
+    unsigned short x;
+    unsigned short y;
+    Type type;
+};
+
+struct Laser {
     bool changed = false;
     unsigned short x{};
     short last_x{};
@@ -87,16 +102,21 @@ namespace XsUtil {
     public:
         explicit GUI(Plane *data) { this->data = data; }; // constructor
         static void createMessage(const vector<string> &message, int position, Plane *data);;
-        static int getMaxLength(vector<string> words); 
-        void main(); 
+
+        static int getMaxLength(vector<string> words);
+
+        void main();
+
         void setting();
+
         static void printDefaultBorder(short width, short high);
+
         static void clearScreenWithoutBorder(short width, short height);
 
     private:
         Plane *data;
     };
-    
+
 }
 
 
@@ -110,13 +130,17 @@ namespace XsSetting {
 
     public:
         explicit Setting(Plane *data) { this->data = data; };
+
         static void *keyEvent(void *wch);
 
         [[noreturn]] void start(); // no exit
         void changeGameSize(); // ! check whether string length suitable for new size
-        void changeHeart(); 
-        void changeSpeed(); 
+        void changeHeart();
+
+        void changeSpeed();
+
         void movePlane(char key);
+
         void drawPlane();
 
     private:
