@@ -463,30 +463,49 @@ namespace XsUtil {
             data->last_y = data->y;
 
             // move plane
-            if (!((0x8000 & GetAsyncKeyState(VK_LEFT)) && (0x8000 & GetAsyncKeyState(VK_RIGHT)))) {
+            byte keyStatus;
+            bool run = true;
+            bool refresh;
+            std::thread(getKeyStatus, &keyStatus, &run, &refresh, 25).detach();
 
-                // left press
-                if (0x8000 & GetAsyncKeyState(VK_LEFT)) {
-                    if (data->x > 1)
-                        data->x--;
+            if (keyStatus & K_LEFT) {  // key left
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->x > 4)
+                        data->x -= 3;
 
-                } else if (0x8000 & GetAsyncKeyState(VK_RIGHT)) {
-                    // right press
-                    if (data->x < data->gameSizeWidth - data->planeWeigh - 1)
-                        data->x++;
-                }
+                } else // without control
+                if (data->x > 1)
+                    data->x--;
             }
-            if (!((0x8000 & GetAsyncKeyState(VK_UP)) && (0x8000 & GetAsyncKeyState(VK_DOWN)))) {
 
-                // up press
-                if (0x8000 & GetAsyncKeyState(VK_UP)) {
-                    if (data->y > 2.5)
-                        data->y--;
-                } else if (0x8000 & GetAsyncKeyState(VK_DOWN)) {
-                    // down press
-                    if (data->y < data->gameSizeHeight - data->planeHeight - 1.5)
-                        data->y++;
-                }
+            if (keyStatus & K_RIGHT) { // key right
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->x < data->gameSizeWidth - data->planeWeigh - 4)
+                        data->x += 3;
+
+                } else // without control
+                if (data->x < data->gameSizeWidth - data->planeWeigh - 1)
+                    data->x++;
+            }
+
+            if (keyStatus & K_UP) { // key up
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->y > 5.5)
+                        data->y -= 3;
+
+                } else // without control
+                if (data->y > 2.5)
+                    data->y--;
+            }
+
+            if (keyStatus & K_DOWN) { // key down
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->y < data->gameSizeHeight - data->planeHeight - 4)
+                        data->y += 3;
+
+                } else // without control
+                if (data->y < data->gameSizeHeight - data->planeHeight - 1)
+                    data->y++;
             }
 
             // print info data
