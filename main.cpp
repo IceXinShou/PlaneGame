@@ -3,21 +3,18 @@
 #define MAIN -1
 #define SETTING -2
 
-using namespace std;
 using namespace XsUtil;
 
-// Class init
+// Class borderGUI
 
-void waitForInput(int type, Setting setting, GUI gui);
+void waitForInput(int type, Setting setting);
 
 HANDLE console; // batch setting handler
 
 int main() {
-    srand(time(NULL));
     system("chcp 65001 | cls"); // UTF-8
     auto *snakeData = new Plane();
-    GUI gui = GUI(snakeData);
-    Setting setting = Setting(snakeData);
+    Setting setting = Setting(snakeData, new GUI(snakeData));
     console = GetStdHandle(STD_OUTPUT_HANDLE);
 
     if (console == INVALID_HANDLE_VALUE)
@@ -27,29 +24,29 @@ int main() {
 
     // Show Selections
 
-    gui.printDefaultBorder(snakeData->gameSizeWidth, snakeData->gameSizeHeight);
-    gui.main();
-    waitForInput(MAIN, setting, gui);
+    waitForInput(MAIN, setting);
 }
 
-void waitForInput(int type, Setting setting, GUI gui) {
+void waitForInput(int type, Setting setting) {
+    setting.borderGUI();
     switch (type) {
         case MAIN: { // gui selections
+            setting.mainGUI();
             switch (_getwch()) {
                 case 13:  // Enter
                     setting.start();
                     break;
                 case 111:  // O
-                    gui.setting();
-                    waitForInput(SETTING, setting, gui);
+                    waitForInput(SETTING, setting);
                     return;
                 case 27: // Esc
                     exit(0);
                 default:
-                    waitForInput(type, setting, gui);
+                    waitForInput(type, setting);
             }
         }
         case SETTING: { // setting selections
+            setting.configGUI();
             switch (_getwch()) {
                 case 49: // 1
                     setting.changeGameSize();
@@ -58,18 +55,16 @@ void waitForInput(int type, Setting setting, GUI gui) {
                     setting.changeHeart();
                     break;
                 case 51: // Page Up
-                    setting.changeSpeed();
+                    setting.changeFPS();
                     break;
                 case 27: // Esc
-                    gui.main();
-                    waitForInput(MAIN, setting, gui);
+                    waitForInput(MAIN, setting);
                     return;
                 default:
-                    waitForInput(type, setting, gui);
+                    waitForInput(type, setting);
             }
 
-            gui.setting();
-            waitForInput(SETTING, setting, gui);
+            waitForInput(SETTING, setting);
             break;
         }
     }

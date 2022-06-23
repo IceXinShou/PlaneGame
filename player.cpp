@@ -3,38 +3,38 @@
 using namespace XsUtil;
 
 extern HANDLE console; // batch setting handler
+
 namespace XsUtil {
 
     void GUI::main() {
-        XsUtil::GUI::createMessage(mainWords, CENTER_LEFT, data);
+        XsUtil::GUI::createMessage(mainWords, CENTER_LEFT);
     }
 
     void GUI::setting() {
-        XsUtil::GUI::createMessage(settingWords, CENTER_LEFT, data);
+        XsUtil::GUI::createMessage(settingWords, CENTER_LEFT);
     }
 
-    int GUI::getMaxLength(vector<string> words) {
+    int GUI::getMaxLength(std::vector<std::string> words) {
         return int((*std::max_element(words.begin(), words.end(),
                                       [](const auto &a, const auto &b) { return a.size() < b.size(); })).length());
     }
 
-    void GUI::createMessage(const vector<string> &message, int position, Plane *data) {
+    void GUI::createMessage(const std::vector<std::string> &message, int position) {
+
         switch (position) {
             case CENTER: {
-                clearScreenWithoutBorder(data->gameSizeWidth, data->gameSizeHeight);
-
-                SetConsoleCursorPosition(console, {0, 1});
+                clearScreenWithoutBorder();
+                gotoXY(0, 1);
 
                 printf(""
                        "║ Current:\n"
                        "║ - GameSize: %d * %d\n"
                        "║ - Plane's Heart(s): %d\n"
-                       "║ - Plane's FPS: %d\n",
+                       "║ - FPS: %d\n",
                        data->gameSizeWidth, data->gameSizeHeight, data->hearts, data->fps);
-                short firstLine = (data->gameSizeHeight - 5) / 2.0f + 0.5f;
+                short firstLine = (data->gameSizeHeight - 5) / 2.0 + 0.5;
                 for (const auto &i: message) {
-                    SetConsoleCursorPosition(console,
-                                             {short((data->gameSizeWidth - 2 - i.length()) / 2.0f), firstLine++});
+                    gotoXY(short((data->gameSizeWidth - 2 - i.length()) / 2.0f), firstLine++);
                     printf("%s", i.c_str());
                 }
                 break;
@@ -42,18 +42,18 @@ namespace XsUtil {
             case CENTER_LEFT: {
                 short space = (data->gameSizeWidth - getMaxLength(message)) >> 1;
 //                printDefaultBorder(data->gameSizeWidth, data->gameSizeHeight);
-                clearScreenWithoutBorder(data->gameSizeWidth, data->gameSizeHeight);
-                SetConsoleCursorPosition(console, {0, 1});
+                clearScreenWithoutBorder();
+                gotoXY(0, 1);
                 printf(""
                        "║ Current:\n"
                        "║ - GameSize: %d * %d\n"
                        "║ - Plane's Heart(s): %d\n"
-                       "║ - Plane's FPS: %d\n",
+                       "║ - FPS: %d\n",
                        data->gameSizeWidth, data->gameSizeHeight, data->hearts, data->fps);
                 short firstLine = (data->gameSizeHeight - 6) / 2.0f + 0.5f;
 
-                for (const string &i: message) {
-                    SetConsoleCursorPosition(console, {space, firstLine++});
+                for (const std::string &i: message) {
+                    gotoXY(space, firstLine++);
                     printf("%s", i.c_str());
                 }
 
@@ -62,28 +62,30 @@ namespace XsUtil {
         }
     }
 
-    void GUI::printDefaultBorder(short width, short high) {
+    void GUI::printDefaultBorder() {
         system("cls");
-        SetConsoleCursorPosition(console, {0, 0});
+        gotoXY(0, 0);
         printf("╔");
-        printRepeat("═", width - 2);
+
+        printRepeat("═", data->gameSizeWidth - 2);
         printf("╗\n");
-        for (short i = 0; i < high - 2; ++i) {
+        for (short i = 0; i < data->gameSizeHeight - 2; ++i) {
             short posY = i + 1;
-            SetConsoleCursorPosition(console, {0, posY});
+            gotoXY(0, posY);
             printf("║");
-            SetConsoleCursorPosition(console, {short(width - 1), posY});
+            gotoXY(short(data->gameSizeWidth - 1), posY);
             printf("║");
         }
         printf("\n╚");
-        printRepeat("═", width - 2);
+        printRepeat("═", data->gameSizeWidth - 2);
         printf("╝");
     }
 
-    void GUI::clearScreenWithoutBorder(short width, short height) {
-        for (short i = 1; i < height - 1; ++i) {
-            SetConsoleCursorPosition(console, {1, i});
-            printf(ESC"[%dX", width - 2);
+    void GUI::clearScreenWithoutBorder() {
+        for (short i = 1; i < data->gameSizeHeight - 1; ++i) {
+            gotoXY(1, i);
+            printf(ESC
+                   "[%dX", data->gameSizeWidth - 2);
         }
     }
 
@@ -103,10 +105,10 @@ namespace XsUtil {
         SetConsoleCursorPosition(console, {x, y});
     }
 
-    void printRepeat(const string &c, int count) {
+    void printRepeat(const std::string &c, int count) {
         if (count < 0) errorPrint(-1);
         while (count--)
-            cout << c;
+            printf("%s", c.c_str());
     }
 
     void printRepeat(const char &c, int count) {
@@ -144,141 +146,204 @@ namespace XsUtil {
         return false;
     }
 
+    void getKeyStatus(byte *keyStatus, const bool *run, bool *refresh, int delay) {
+        *keyStatus = 0b0;
+        *refresh = true;
+
+        while (*run) {
+            if (0x8000 & GetAsyncKeyState(VK_LEFT)) // left press
+                *keyStatus |= K_LEFT;
+            else
+                *keyStatus &= ~K_LEFT;
+
+            if (0x8000 & GetAsyncKeyState(VK_RIGHT)) // right press
+                *keyStatus |= K_RIGHT;
+            else
+                *keyStatus &= ~K_RIGHT;
+
+            if (0x8000 & GetAsyncKeyState(VK_UP)) // up press
+                *keyStatus |= K_UP;
+            else
+                *keyStatus &= ~K_UP;
+
+            if (0x8000 & GetAsyncKeyState(VK_DOWN)) // down press
+                *keyStatus |= K_DOWN;
+            else
+                *keyStatus &= ~K_DOWN;
+
+            if (0x8000 & GetAsyncKeyState(VK_CONTROL)) // control press
+                *keyStatus |= K_CTRL;
+            else
+                *keyStatus &= ~K_CTRL;
+
+            if (0x8000 & GetAsyncKeyState(VK_LSHIFT)) // shift press
+                *keyStatus |= K_LSHIFT;
+            else
+                *keyStatus &= ~K_LSHIFT;
+
+            if (0x8000 & GetAsyncKeyState(VK_ESCAPE)) // shift press
+                *keyStatus |= K_ESC;
+            else
+                *keyStatus &= ~K_ESC;
+
+            if (0x8000 & GetAsyncKeyState(VK_TAB)) // shift press
+                *keyStatus |= K_TAB;
+            else
+                *keyStatus &= ~K_TAB;
+
+            if (*keyStatus != 0 && *keyStatus != K_ESC) *refresh = true;
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+        }
+    }
+
 
     void Setting::changeGameSize() {
-        while (true) {
-            XsUtil::GUI::printDefaultBorder(data->gameSizeWidth, data->gameSizeHeight);
-            XsUtil::GUI::createMessage(changeGameSizeWord, CENTER, data);
-            if (getch() == 224)
-                switch (getch()) {
-                    case 80:
-                        // code for arrow down
-                        if (data->gameSizeHeight < 255)
-                            data->gameSizeHeight += 1;
-                        break;
-                    case 72:
-                        // code for arrow up
-                        if (data->gameSizeHeight > 1)
-                            data->gameSizeHeight -= 1;
-                        break;
-                    case 145:
-                        // code for ctrl arrow down
-                        if (data->gameSizeHeight < 246)
-                            data->gameSizeHeight += 10;
-                        break;
-                    case 141:
-                        // code for ctrl arrow up
-                        if (data->gameSizeHeight > 10)
-                            data->gameSizeHeight -= 10;
-                        break;
-                        // ---------------------------------
-                    case 75:
-                        // code for arrow left
-                        if (data->gameSizeWidth > 1)
-                            data->gameSizeWidth -= 1;
-                        break;
-                    case 77:
-                        // code for arrow right
-                        if (data->gameSizeWidth < 255)
-                            data->gameSizeWidth += 1;
-                        break;
-                    case 116:
-                        // code for ctrl arrow right
-                        if (data->gameSizeWidth < 246)
-                            data->gameSizeWidth += 10;
-                        break;
-                    case 115:
-                        // code for ctrl arrow left
-                        if (data->gameSizeWidth > 10)
-                            data->gameSizeWidth -= 10;
-                        break;
-                    default:
-                        break;
-                }
-            else break;
+
+        byte keyStatus;
+        bool run = true;
+        bool refresh;
+        std::thread(getKeyStatus, &keyStatus, &run, &refresh, 50).detach();
+        while (keyStatus != K_ESC) {
+            if (refresh) {
+                gui->printDefaultBorder();
+                gui->createMessage(changeGameSizeWord, CENTER);
+                refresh = false;
+            }
+
+            if (keyStatus & K_DOWN) {  // key down
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->gameSizeHeight < 246)
+                        data->gameSizeHeight += 10;
+
+                } else // without control
+                if (data->gameSizeHeight < 255)
+                    data->gameSizeHeight += 1;
+            }
+
+            if (keyStatus & K_UP) { // key up
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->gameSizeHeight > 10)
+                        data->gameSizeHeight -= 10;
+
+                } else // without control
+                if (data->gameSizeHeight > 1)
+                    data->gameSizeHeight -= 1;
+            }
+
+            if (keyStatus & K_RIGHT) { // key right
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->gameSizeWidth < 246)
+                        data->gameSizeWidth += 10;
+
+                } else // without control
+                if (data->gameSizeWidth < 255)
+                    data->gameSizeWidth += 1;
+            }
+
+            if (keyStatus & K_LEFT) { // key left
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->gameSizeWidth > 10)
+                        data->gameSizeWidth -= 10;
+
+                } else // without control
+                if (data->gameSizeWidth > 1)
+                    data->gameSizeWidth -= 1;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
+
+        run = false;
     }
 
     void Setting::changeHeart() {
-        while (true) {
-            XsUtil::GUI::createMessage(changeHeartsWord, CENTER, data);
-            if (getch() == 224)
-                switch (getch()) {
-                    case 80:
-                        // code for arrow down
-                        if (data->hearts > 1)
-                            data->hearts -= 1;
-                        break;
-                    case 72:
-                        // code for arrow up
-                        if (data->hearts < 4294967295)
-                            data->hearts += 1;
-                        break;
-                    case 145:
-                        // code for ctrl arrow down
-                        if (data->hearts > 10)
-                            data->hearts -= 10;
-                        break;
-                    case 141:
-                        // code for ctrl arrow up
-                        if (data->hearts < 4294967286)
-                            data->hearts += 10;
-                        break;
-                    default:
-                        break;
-                }
-            else break;
+        byte keyStatus;
+        bool run = true;
+        bool refresh;
+        std::thread(getKeyStatus, &keyStatus, &run, &refresh, 50).detach();
+        while (keyStatus != K_ESC) {
+            if (refresh) {
+                gui->createMessage(changeHeartsWord, CENTER);
+                refresh = false;
+            }
+
+            if (keyStatus & K_DOWN) {  // key down
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->hearts > 10)
+                        data->hearts -= 10;
+
+                } else // without control
+                if (data->hearts > 1)
+                    data->hearts -= 1;
+            }
+
+            if (keyStatus & K_UP) { // key up
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->hearts < 4294967286)
+                        data->hearts += 10;
+
+                } else // without control
+                if (data->hearts < 4294967295)
+                    data->hearts += 1;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
+
+        run = false;
     }
 
 
-    void Setting::changeSpeed() {
-        while (true) {
-            XsUtil::GUI::createMessage(changeSpeedWord, CENTER, data);
-            if (getch() == 224)
-                switch (getch()) {
-                    case 80:
-                        // code for arrow down
-                        if (data->fps > 1)
-                            data->fps -= 1;
-                        break;
-                    case 72:
-                        // code for arrow up
-                        if (data->fps < 4294967295)
-                            data->fps += 1;
-                        break;
-                    case 145:
-                        // code for ctrl arrow down
-                        if (data->fps > 10)
-                            data->fps -= 10;
-                        break;
-                    case 141:
-                        // code for ctrl arrow up
-                        if (data->fps < 4294967286)
-                            data->fps += 10;
-                        break;
-                    default:
-                        break;
-                }
-            else break;
+    void Setting::changeFPS() {
+        byte keyStatus;
+        bool run = true;
+        bool refresh;
+        std::thread(getKeyStatus, &keyStatus, &run, &refresh, 50).detach();
+        while (keyStatus != K_ESC) {
+            if (refresh) {
+                gui->createMessage(changeFPSWord, CENTER);
+                refresh = false;
+            }
+
+            if (keyStatus & K_DOWN) {  // key down
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->fps > 10)
+                        data->fps -= 10;
+
+                } else // without control
+                if (data->fps > 1)
+                    data->fps -= 1;
+            }
+
+            if (keyStatus & K_UP) { // key up
+                if (keyStatus & K_CTRL) {  // with control
+                    if (data->fps < 4294967286)
+                        data->fps += 10;
+
+                } else // without control
+                if (data->fps < 4294967295)
+                    data->fps += 1;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
+
+        run = false;
     }
 
 
-    mutex m;
+    std::mutex m;
     std::random_device dev;
     std::mt19937 rng(dev());
-    queue<Paint *> paintsQueue;
-    uniform_int_distribution<mt19937::result_type> rand(1, 1000); // distribution in range [1, 1000]
-    void Setting::summonLaser(const unsigned short *width, const unsigned short *height, const short *status) {
+    std::queue<Paint *> paintsQueue;
+    std::uniform_int_distribution<std::mt19937::result_type> rand(1, 1000); // distribution in range [1, 1000]
+    void Setting::summonStone(const unsigned short *width, const unsigned short *height, const short *status) {
 
-        // generate a random laser
+        // generate a random stone
         int randNum = rand(rng);
         int waitTime = (randNum % 35) + 20; // ms
         unsigned short x = (randNum * randNum % (*width - 6)) + 3;
         unsigned short y = 1;
 
-        // change laser
+        // change stone
         while (*status == 1) {
             ++y;
 
@@ -301,23 +366,22 @@ namespace XsUtil {
 
             m.unlock();
 
-            this_thread::sleep_for(chrono::milliseconds(waitTime));
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
         }
     }
 
+
     void Setting::start() {
         SetConsoleCursorInfo(console, new CONSOLE_CURSOR_INFO{1, false});
-        XsUtil::GUI::clearScreenWithoutBorder(data->gameSizeWidth, data->gameSizeHeight);
+        gui->clearScreenWithoutBorder();
         data->init();
 
         // render setting
         bool gameMap[data->gameSizeHeight][data->gameSizeWidth]; // rock
 
-        for (int i = 0; i < data->gameSizeHeight; ++i) {
-            for (int j = 0; j < data->gameSizeWidth; ++j) {
+        for (int i = 0; i < data->gameSizeHeight; ++i)
+            for (int j = 0; j < data->gameSizeWidth; ++j)
                 gameMap[i][j] = false;
-            }
-        }
 
         float fps = data->fps;
         struct timeval last{}, now = {0, 0}, secTimer = {0, 0};
@@ -332,10 +396,10 @@ namespace XsUtil {
         difficult -= int(difficult) % 30;
         float timer = 40 - difficult;
 
-        vector<thread> laserThread;
+        std::vector<std::thread> stoneThread;
         while (true) {
 
-            // timer to generate laser
+            // timer to generate stone
             if (++counter >= timer) {
                 counter = 0;
                 if (timer > 30)
@@ -346,7 +410,7 @@ namespace XsUtil {
                     timer -= 0.03;
                 else if (difficult >= 25)
                     timer -= 0.02;
-                thread(summonLaser, &data->gameSizeWidth, &data->gameSizeHeight, &game_status).detach();
+                std::thread(summonStone, &data->gameSizeWidth, &data->gameSizeHeight, &game_status).detach();
             }
             // print
 
@@ -420,7 +484,7 @@ namespace XsUtil {
                         data->y--;
                 } else if (0x8000 & GetAsyncKeyState(VK_DOWN)) {
                     // down press
-                    if (data->y < data->gameSizeHeight - data->planeHeigh - 1.5)
+                    if (data->y < data->gameSizeHeight - data->planeHeight - 1.5)
                         data->y++;
                 }
             }
@@ -462,13 +526,26 @@ namespace XsUtil {
         }
     }
 
+    void Setting::borderGUI() {
+        gui->printDefaultBorder();
+        gui->main();
+    }
+
+    void Setting::mainGUI() {
+        gui->main();
+    }
+
+    void Setting::configGUI() {
+        gui->setting();
+    }
+
 
     void Plane::init() {
         x = gameSizeWidth / 2.0 - 5.5;
         y = gameSizeHeight / 2.0 + 4.5;
     }
 
-    void Plane::drawPlane()  {
+    void Plane::drawPlane() {
 
         // erase old
         if (last_x != -1 || last_y != -1) {
@@ -488,4 +565,5 @@ namespace XsUtil {
         gotoXY(x, y + 2);
         print("O 0   O O", color);
     }
+
 }
